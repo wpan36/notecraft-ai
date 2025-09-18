@@ -1,0 +1,64 @@
+version: "3.9"
+
+name: notecraft-ai
+
+services:
+  db:
+    image: postgres:16
+    container_name: notecraft-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-notecraft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notecraft}
+      POSTGRES_DB: ${POSTGRES_DB:-notecraft}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./deploy/scripts/init_db.sql:/docker-entrypoint-initdb.d/00_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notecraft} -d ${POSTGRES_DB:-notecraft}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - appnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: notecraft-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-notecraft}:${POSTGRES_PASSWORD:-notecraft}@db:5432/${POSTGRES_DB:-notecraft}"
+      APP_ENV: "dev"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - appnet
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: notecraft-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE: "http://localhost:8080"
+    depends_on:
+      - backend
+    ports:
+      - "8081:3000"
+    networks:
+      - appnet
+
+volumes:
+  db_data:
+
+networks:
+  appnet:
+    driver: bridge
