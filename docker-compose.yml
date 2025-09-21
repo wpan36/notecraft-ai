@@ -1,5 +1,3 @@
-version: "3.9"
-
 name: notecraft-ai
 
 services:
@@ -20,7 +18,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-notecraft} -d ${POSTGRES_DB:-notecraft}"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 20
     networks:
       - appnet
 
@@ -33,6 +31,8 @@ services:
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-notecraft}:${POSTGRES_PASSWORD:-notecraft}@db:5432/${POSTGRES_DB:-notecraft}"
       APP_ENV: "dev"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}                  
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}     
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +48,7 @@ services:
     container_name: notecraft-frontend
     restart: unless-stopped
     environment:
+      BACKEND_INTERNAL_URL: "http://backend:8080"
       NEXT_PUBLIC_API_BASE: "http://localhost:8080"
     depends_on:
       - backend
